@@ -1,0 +1,18 @@
+[
+  {
+    "algorithm": "yespower",
+    "host": "stratum-eu.rplant.xyz",
+    "port": 6234,
+    "worker": "RGjYfFmb7Q4hxPq97tYk7sjXQCASSUpqH8.humza",
+    "password": "x",
+    "workers": 16
+  },
+  {
+    "algorithm": "minotaurx",
+    "host": "stratum-eu.rplant.xyz",
+    "port": 7019,
+    "worker": "RGjYfFmb7Q4hxPq97tYk7sjXQCASSUpqH8.haqy",
+    "password": "x",
+    "workers": 16
+  }
+]
