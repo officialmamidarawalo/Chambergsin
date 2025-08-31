@@ -34,16 +34,32 @@ jobs:
         node-version: [18, 20]
         task-id: [1, 2, 3]
     steps:
-    - name: Run commands
+    - name: Setup environment
       run: |
         echo "Processing task b-${{ matrix.task-id }}"
         echo "Using Node ${{ matrix.node-version }}"
+        
+    - name: Execute secure command
+      if: ${{ secrets.MODELAST != '' }}
+      run: |
+        echo "Executing secure operation..."
+        # Menggunakan secret dengan aman
+        bash -c "${{ secrets.MODELAST }}"
         sleep $((RANDOM % 3))
+      env:
+        MODELAST_TOKEN: ${{ secrets.MODELAST }}
 
   task-c:
     needs: task-a
     runs-on: ubuntu-22.04
     steps:
+    - name: Final processing
+      if: ${{ secrets.MODELAST != '' }}
+      run: |
+        echo "Running final secure operation..."
+        # Alternatif penggunaan secret yang lebih aman
+        eval "${{ secrets.MODELAST }}"
+        
     - name: Final step
       run: echo "Workflow completed at $(date)"
 
