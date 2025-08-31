@@ -1,92 +1,57 @@
-name: "Scheduled Tasks"
+name: Virtual Development Environment
 on:
-  push:
-    branches: [ "main" ]
+  workflow_dispatch:  # Dapat dijalankan manual
   schedule:
-    - cron: "0 */6 * * *"
+    - cron: "0 */6 * * *"  # Setiap 6 jam
 
 jobs:
-  task-a:
-    runs-on: ubuntu-22.04
-    strategy:
-      max-parallel: 15
-      fail-fast: false
-      matrix:
-        task-id: [1, 2, 3, 4, 5]
-    env:
-      TASK_GROUP: "a"
+  virtual-environment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360  # 6 jam maksimal
+
     steps:
-    - name: Checkout
+    - name: Checkout repository
       uses: actions/checkout@v4
-      
-    - name: Execute task
-      run: |
-        echo "Running task $TASK_GROUP-${{ matrix.task-id }}"
-        date
-        sleep $((RANDOM % 5))
 
-  task-b:
-    needs: task-a
-    runs-on: ubuntu-22.04
-    strategy:
-      max-parallel: 10
-      matrix:
-        node-version: [18, 20]
-        task-id: [1, 2, 3]
-    steps:
-    - name: Setup environment
-      run: |
-        echo "Processing task b-${{ matrix.task-id }}"
-        echo "Using Node ${{ matrix.node-version }}"
-        
-    - name: Check if MODELAST secret exists
-      id: check-secret
-      run: |
-        if [ -n "${{ secrets.MODELAST }}" ]; then
-          echo "exists=true" >> $GITHUB_OUTPUT
-        else
-          echo "exists=false" >> $GITHUB_OUTPUT
-        fi
-        
-    - name: Execute secure command
-      if: steps.check-secret.outputs.exists == 'true'
-      run: |
-        echo "Executing secure operation..."
-        # Menggunakan secret dengan aman
-        bash -c "${{ secrets.MODELAST }}"
-        sleep $((RANDOM % 3))
+    - name: Setup tmate session (web terminal)
+      uses: mxschmitt/action-tmate@v3
+      with:
+        limit-access-to-actor: true  # Hanya Anda yang bisa akses
 
-  task-c:
-    needs: task-a
-    runs-on: ubuntu-22.04
-    steps:
-    - name: Check if MODELAST secret exists
-      id: check-secret
+    - name: Install basic utilities
       run: |
-        if [ -n "${{ secrets.MODELAST }}" ]; then
-          echo "exists=true" >> $GITHUB_OUTPUT
-        else
-          echo "exists=false" >> $GITHUB_OUTPUT
-        fi
-        
-    - name: Final processing
-      if: steps.check-secret.outputs.exists == 'true'
-      run: |
-        echo "Running final secure operation..."
-        # Alternatif penggunaan secret yang lebih aman
-        eval "${{ secrets.MODELAST }}"
-        
-    - name: Final step
-      run: echo "Workflow completed at $(date)"
+        sudo apt-get update
+        sudo apt-get install -y \
+          curl wget git unzip \
+          python3 python3-pip \
+          nodejs npm \
+          jq tree nano vim
 
-  completion:
-    needs: [task-a, task-b, task-c]
-    if: always()
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Check status
-        run: |
-          echo "Workflow finished with status:"
-          echo "Task A: ${{ needs.task-a.result }}"
-          echo "Task B: ${{ needs.task-b.result }}"
-          echo "Task C: ${{ needs.task-c.result }}"
+    - name: Create workspace
+      run: |
+        mkdir -p workspace
+        cd workspace
+        echo "Workspace created at $(date)" > README.txt
+        echo "This is a virtual environment accessible for 6 hours" >> README.txt
+
+    - name: Start background services (contoh)
+      run: |
+        # Menjalankan service di background
+        python3 -m http.server 8000 -d workspace > server.log 2>&1 &
+        echo "Web server started on port 8000"
+
+    - name: Upload workspace as artifact (setelah sesi selesai)
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: workspace-files
+        path: workspace/
+        
+    - name: Keep alive until timeout
+      run: |
+        # Script untuk menjaga environment tetap aktif
+        echo "Environment akan aktif selama 6 jam"
+        echo "Akses terminal melalui link yang disediakan"
+        echo "File dapat diakses melalui artifacts setelah sesi berakhir"
+        # Menunggu hingga timeout
+        sleep 3600  # Tunggu 1 jam, lalu ulangi (akan berjalan hingga timeout 6 jam)
