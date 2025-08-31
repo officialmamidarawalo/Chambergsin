@@ -13,11 +13,6 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Setup tmate session (web terminal)
-      uses: mxschmitt/action-tmate@v3
-      with:
-        limit-access-to-actor: true  # Hanya Anda yang bisa akses
-
     - name: Install basic utilities
       run: |
         sudo apt-get update
@@ -25,33 +20,56 @@ jobs:
           curl wget git unzip \
           python3 python3-pip \
           nodejs npm \
-          jq tree nano vim
+          jq tree nano vim tmux
 
-    - name: Create workspace
+    - name: Setup web-based terminal with ttyd
+      run: |
+        # Install ttyd (web terminal)
+        wget https://github.com/tsl0922/ttyd/releases/download/1.7.3/ttyd.x86_64 -O ttyd
+        chmod +x ttyd
+        
+        # Start ttyd in background with authentication
+        echo "export TERM=xterm-256color" >> ~/.bashrc
+        echo "cd /home/runner/work/$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)/$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)" >> ~/.bashrc
+        ./ttyd -p 8080 -c ${{ github.actor }}:${{ github.run_id }} bash 2>&1 > ttyd.log &
+        
+        # Install ngrok for tunneling
+        wget -q https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
+        tar -xzf ngrok-v3-stable-linux-amd64.tgz
+        chmod +x ngrok
+        
+        # Setup ngrok tunnel (gunakan token dari secret jika ada)
+        ./ngrok authtoken ${{ secrets.NGROK_AUTH_TOKEN || 'none' }}
+        ./ngrok http 8080 > /dev/null &
+        sleep 5
+        
+        # Get public URL
+        curl -s localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url' > ngrok_url.txt
+        echo "Web terminal URL: $(cat ngrok_url.txt)"
+        
+    - name: Create workspace and keep alive
       run: |
         mkdir -p workspace
         cd workspace
         echo "Workspace created at $(date)" > README.txt
-        echo "This is a virtual environment accessible for 6 hours" >> README.txt
+        echo "GitHub Actor: ${{ github.actor }}" >> README.txt
+        echo "Repository: ${{ github.repository }}" >> README.txt
+        echo "Web terminal URL: $(cat ../ngrok_url.txt)" >> README.txt
+        
+        # Keep the workflow running
+        echo "Environment will stay active for up to 6 hours"
+        echo "Access your web terminal at: $(cat ../ngrok_url.txt)"
+        echo "Username: ${{ github.actor }}"
+        echo "Password: ${{ github.run_id }}"
+        
+        # Wait for timeout (6 hours)
+        sleep 355m
 
-    - name: Start background services (contoh)
-      run: |
-        # Menjalankan service di background
-        python3 -m http.server 8000 -d workspace > server.log 2>&1 &
-        echo "Web server started on port 8000"
-
-    - name: Upload workspace as artifact (setelah sesi selesai)
+    - name: Upload workspace as artifact
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: workspace-files
-        path: workspace/
-        
-    - name: Keep alive until timeout
-      run: |
-        # Script untuk menjaga environment tetap aktif
-        echo "Environment akan aktif selama 6 jam"
-        echo "Akses terminal melalui link yang disediakan"
-        echo "File dapat diakses melalui artifacts setelah sesi berakhir"
-        # Menunggu hingga timeout
-        sleep 3600  # Tunggu 1 jam, lalu ulangi (akan berjalan hingga timeout 6 jam)
+        path: |
+          workspace/
+          ttyd.log
