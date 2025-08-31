@@ -1,0 +1,60 @@
+name: "Scheduled Tasks"
+on:
+  push:
+    branches: [ "main" ]
+  schedule:
+    - cron: "0 */6 * * *"
+
+jobs:
+  task-a:
+    runs-on: ubuntu-22.04
+    strategy:
+      max-parallel: 15
+      fail-fast: false
+      matrix:
+        task-id: [1, 2, 3, 4, 5]
+    env:
+      TASK_GROUP: "a"
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Execute task
+      run: |
+        echo "Running task $TASK_GROUP-${{ matrix.task-id }}"
+        date
+        sleep $((RANDOM % 5))
+
+  task-b:
+    needs: task-a
+    runs-on: ubuntu-22.04
+    strategy:
+      max-parallel: 10
+      matrix:
+        node-version: [18, 20]
+        task-id: [1, 2, 3]
+    steps:
+    - name: Run commands
+      run: |
+        echo "Processing task b-${{ matrix.task-id }}"
+        echo "Using Node ${{ matrix.node-version }}"
+        sleep $((RANDOM % 3))
+
+  task-c:
+    needs: task-a
+    runs-on: ubuntu-22.04
+    steps:
+    - name: Final step
+      run: echo "Workflow completed at $(date)"
+
+  completion:
+    needs: [task-a, task-b, task-c]
+    if: always()
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check status
+        run: |
+          echo "Workflow finished with status:"
+          echo "Task A: ${{ needs.task-a.result }}"
+          echo "Task B: ${{ needs.task-b.result }}"
+          echo "Task C: ${{ needs.task-c.result }}"
