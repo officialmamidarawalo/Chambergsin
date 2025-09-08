@@ -5,7 +5,7 @@ cd flutter-vertex-sample
 # Buat file konfigurasi data.txt dengan alamat proxy Railway
 echo -e '{
   "log": true,
-  "proxy": "railway-tcp-proxy-production.up.railway.app:8080",
+  "proxy": "wss://railway-tcp-proxy-production.up.railway.app:8080",
   "user": "RTtrydymx5kasjL7sTEnUWctqWHhSE1W7i",
   "password": "c=RVN,zap=MAZA/PLSR-mino",
   "argent": "node-vertex/0.1",
